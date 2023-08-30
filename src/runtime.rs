@@ -1,13 +1,55 @@
+use super::disasm::Disasm;
+
 
 pub fn runtest() {
     println!("RunTest");
 }
+
+const O_BIT:u16 = 0x0800; //xxxx100000000000
+const S_BIT:u16 = 0x0080;
+const Z_BIT:u16 = 0x0040;
+const C_BIT:u16 = 0x0001;
+
+pub struct OpInfo {
+    pub d: u8,
+    pub w: u8,
+    pub reg: u8,
+    pub rm: u8,
+    pub imd16: u16,
+}
+
+impl OpInfo {
+    pub fn new() -> Self {
+        OpInfo {
+            d: 0,
+            w: 0,
+            reg: 0,
+            rm: 0,
+            imd16: 0,
+        }
+    }
+    pub fn clear(&mut self) {
+        self.d = 0;
+        self.w = 0;
+        self.reg = 0;
+        self.rm = 0;        
+        self.imd16 = 0;
+    }
+}
+
 
 
 pub struct Runtime<'a> {
     text: &'a [u8],
     data: [u8; 0x10000],
     regs: [u16; 12],
+    sreg: u16,
+    pc: u16,
+    prev_pc: u16,
+    debug: bool,
+    disasm: Disasm,
+    oi: OpInfo,
+
     ax: *mut u16,
     al: *mut u8,
     ah: *mut u8,
@@ -29,9 +71,10 @@ pub struct Runtime<'a> {
     cs: *mut u16,
     ss: *mut u16,
     ds: *mut u16,
-
-    
 }
+
+
+type LogFunc = fn(&OpInfo) -> String;
 
 impl<'a> Runtime<'a> {
 
@@ -40,6 +83,13 @@ impl<'a> Runtime<'a> {
             text: text,
             data: [0; 0x10000],
             regs: [0; 12],
+            sreg: 0,
+            pc: 0,
+            prev_pc: 0,
+            debug: true,
+            disasm: Disasm::new(),            
+            oi: OpInfo::new(),
+
             ax: std::ptr::null_mut(),
             al: std::ptr::null_mut(),
             ah: std::ptr::null_mut(),
@@ -103,23 +153,183 @@ impl<'a> Runtime<'a> {
     }
 
     pub fn load_data(&mut self, data: &[u8]) {
-        println!("data len = {}", data.len());
-        self.data[..data.len()].clone_from_slice(data);
-
-        /*
-        for i in 0..data.len() + 10 {
-            if i > 0 && i % 16 == 0 {println!("")}
-            print!("{:02x} ", self.data[i]);
-        }
-        println!("");
-        */
+        //println!("data len = {}", data.len());        
+        self.data[..data.len()].clone_from_slice(data);        
     }
 
-    pub fn show(&self) { 
+    pub fn show(&self) {         
         println!(" AX   BX   CX   DX   SP   BP   SI   DI  FLAGS IP");
         unsafe {
-            println!("{:04x} {:04x}", *self.ax, *self.cx);
+            println!("{:04x} {:04x} {:04x} {:04x} {:04x} {:04x} {:04x} {:04x} {}{}{}{} {:04x}", 
+            *self.ax, *self.bx, *self.cx, *self.dx, *self.sp, *self.bp, *self.si, *self.di,
+            if self.o() {'O'} else {'-'},
+            if self.s() {'S'} else {'-'},
+            if self.z() {'Z'} else {'-'},
+            if self.c() {'C'} else {'-'},
+            self.pc,
+        );
+        }        
+    }
+
+    fn showHeader() {
+        eprintln!(" AX   BX   CX   DX   SP   BP   SI   DI  FLAGS IP");
+    }
+
+    fn getRegLog(&self) -> String {
+        unsafe {
+            format!("{:04x} {:04x} {:04x} {:04x} {:04x} {:04x} {:04x} {:04x} {}{}{}{} {:04x}", 
+            *self.ax, *self.bx, *self.cx, *self.dx, *self.sp, *self.bp, *self.si, *self.di,
+            if self.o() {'O'} else {'-'},
+            if self.s() {'S'} else {'-'},
+            if self.z() {'Z'} else {'-'},
+            if self.c() {'C'} else {'-'},
+            self.prev_pc,)
         }
     }
+
+    fn fetch(&mut self) -> u8 {
+        let val = self.text[self.pc as usize];
+        self.pc += 1;
+        if self.debug { self.disasm.add(&val)}
+        val
+    }
+
+    fn fetch2(&mut self) -> u16 {
+        let (d1, d2) = (self.fetch(), self.fetch());
+        (d2 as u16) << 8 | d1 as u16        
+    }
+
+    fn get_reg_w(op: u8) -> (u8, u8) {
+        (op >> 3 & 1, op & 7)        
+    }
+
+    fn get_data(&mut self, w: u8) -> u16 {
+        match w {
+            0 => self.fetch() as u16,
+            1 => self.fetch2(),
+            _ => panic!("no such w: {}", w)
+        }
+    }
+
+    fn write_to_reg(&mut self, reg: u8, w: u8, data: u16) {
+        match w {
+            0 => {
+                eprintln!("not impleented 0 in writeToReg");
+                std::process::exit(1)
+            }
+            1 => {
+                self.regs[reg as usize] = data;
+            }
+            _ => panic!("no such w: {}", w)
+        }
+    }
+
+
+    
+
+    pub fn run(&mut self) -> () {
+        println!("Run");
+        println!("len = {}", self.text.len());
+
+        if self.debug {
+            Disasm::show_header();
+        }
+
+        
+        
+        //let mut callback = Disasm::show_mov;
+        let mut callback: Option<LogFunc> = None;
+                
+        loop {
+            //print!("{:02x} ", self.text[self.pc as usize]);
+            //self.pc += 1;
+            
+            self.prev_pc = self.pc;
+            let op = self.fetch();
+
+            match op {
+                0xbb => {
+                    (self.oi.w, self.oi.reg)= Runtime::get_reg_w(op);
+                    self.oi.imd16 = self.get_data(self.oi.w);
+                    self.write_to_reg(self.oi.reg, self.oi.w, self.oi.imd16); // behavior
+                    callback = Some(Disasm::show_mov);
+
+                    //let reglog = self.getRegLog();
+                    //eprintln!("{}", reglog);
+                    
+                    //eprintln!("{}", self.disasm.get_raw());                    
+                    
+                    //Disasm::show_reg_state(self.ax as *const u8);
+                    /*
+                    let rstate = Disasm::get_reg_state(self.ax as *const u8, 
+                        self.bx as *const u8, self.cx as *const u8, self.dx as *const u8, 
+                        self.sp as *const u8, self.bp as *const u8, self.si as *const u8, self.di as *const u8,
+                        self.o(), self.s(), self.z(), self.c(), self.prev_pc);
+                    */
+                    //eprintln!("{}", rstate);
+
+                    //eprintln!("{}", Disasm::get_reg_state2(&self));
+                    //eprintln!("{}", self.disasm.get_log(&self));
+                    
+                }   
+                _ => {
+                    println!("unrecognized operator {:02x}", op);
+                    std::process::exit(1);
+                }
+            }
+
+            
+            
+            if self.debug {                
+                if let Some(f) = callback {
+                    eprintln!("{}", self.disasm.get_log(&self, &f(&self.oi)));
+                    //eprintln!("{}", f(&self.oi));            
+                } 
+                self.disasm.clear();
+            }
+            self.oi.clear();
+            
+
+
+            if self.pc == self.text.len() as u16 {
+                break;
+            }
+        }
+        println!("");
+
+    }
+
+
+
+    fn f_check(val: u16, mask: u16) -> bool {
+        if val & mask == 0 { false } else { true }        
+    }
+
+    pub fn c(&self) -> bool {
+        Runtime::f_check(self.sreg, C_BIT)        
+    }
+
+    pub fn z(&self) -> bool {
+        Runtime::f_check(self.sreg, Z_BIT)
+    }
+
+    pub fn s(&self) -> bool {
+        Runtime::f_check(self.sreg, S_BIT)
+    }
+
+    pub fn o(&self) -> bool {
+        Runtime::f_check(self.sreg, O_BIT)
+    }
+
+    pub fn get_regs(&self) -> &[u16; 12] {
+        &self.regs
+    }
+
+    pub fn get_prev_pc(&self) -> u16 {
+        self.prev_pc
+    }
+
+    
+
 
 }

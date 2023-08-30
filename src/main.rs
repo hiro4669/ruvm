@@ -33,6 +33,7 @@ fn main() {
     let mut runtime = runtime::Runtime::new(text);
     runtime.init();
     runtime.load_data(data);
-    runtime.show();
+    runtime.run();
+    //runtime.show();
 
 }
