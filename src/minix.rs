@@ -30,10 +30,17 @@ impl Minix {
 
         //println!("m_source {}, m_type {}", m_source, m_type);
         match m_type {
-            4 => {                
+            1 => { // exit; temporary
+                if self.debug {
+                    eprintln!("<exit(0)>");
+                }
+                std::process::exit(0);
+            }
+            4 => {// write
                 self.write(idx, dmem);
             }
             _ => panic!("not supported {}", m_type),
+
         }
     }
 

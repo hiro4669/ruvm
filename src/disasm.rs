@@ -83,6 +83,7 @@ impl Disasm {
         "int 20".into()        
     }
 
+    /*
     pub fn get_reg_state(ax: *const u8, bx: *const u8, cx: *const u8, dx: *const u8, 
         sp: *const u8, bp: *const u8, si: *const u8, di: *const u8,
         o: bool, s: bool, z: bool, c: bool, prev_pc: u16) -> String {
@@ -97,15 +98,16 @@ impl Disasm {
             )
         }
     }
+    */
 
-    pub fn get_log(&self, runtime: &Runtime, asm: &str) -> String {
-        let reginfo = Disasm::get_reg_state2(runtime);
+    pub fn get_log(&self, reginfo: &str, asm: &str) -> String {
+        //let reginfo = Disasm::get_reg_state(runtime);
         let rawinfo = self.get_raw();
 
-        reginfo + ":" + &rawinfo +  &" ".repeat(14 - rawinfo.len()) + asm
+        reginfo.to_string() + ":" + &rawinfo +  &" ".repeat(14 - rawinfo.len()) + asm
     }
 
-    pub fn get_reg_state2(runtime: &Runtime) -> String {
+    pub fn get_reg_state(runtime: &Runtime) -> String {
         let regs = runtime.get_regs();
         format!("{:04x} {:04x} {:04x} {:04x} {:04x} {:04x} {:04x} {:04x} {}{}{}{} {:04x}", 
             regs[0], regs[3], regs[1], regs[2], regs[4], regs[5], regs[6], regs[7],

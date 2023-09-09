@@ -241,13 +241,16 @@ impl<'a> Runtime<'a> {
         
         //let mut callback = Disasm::show_mov;
         let mut callback: Option<LogFunc> = None;
-                
+        let mut regstatus: String = "".into();
         loop {
             //print!("{:02x} ", self.text[self.pc as usize]);
             //self.pc += 1;
             
             self.prev_pc = self.pc;
             let op = self.fetch();
+            if self.debug {
+                regstatus = Disasm::get_reg_state(self);
+            }
 
             match op {
                 0xbb => {
@@ -258,10 +261,8 @@ impl<'a> Runtime<'a> {
                 }
                 0xcd => {
                     let tp = self.fetch();                    
-                    eprintln!("{}", self.disasm.get_log(&self, &Disasm::show_syscall(&self.oi)));                     
-                    self.os.syscall(self.regs[3], &mut self.data);
-
-                    std::process::exit(1);
+                    eprintln!("{}", self.disasm.get_log(&regstatus, &Disasm::show_syscall(&self.oi)));                     
+                    self.os.syscall(self.regs[3], &mut self.data);                    
                 }
                 _ => {
                     println!("unrecognized operator {:02x}", op);
@@ -273,7 +274,7 @@ impl<'a> Runtime<'a> {
             
             if self.debug {                
                 if let Some(f) = callback {
-                    eprintln!("{}", self.disasm.get_log(&self, &f(&self.oi)));
+                    eprintln!("{}", self.disasm.get_log(&regstatus, &f(&self.oi)));
                     //eprintln!("{}", f(&self.oi));            
                 } 
                 self.disasm.clear();
