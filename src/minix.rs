@@ -1,4 +1,9 @@
 
+extern "C" {
+    fn hello() -> ();
+    fn sys_write(fildes: u16, buffer: *const u8, nbytes: u16) -> u16;
+}
+
 pub struct Minix {    
     debug: bool
 }
@@ -17,14 +22,13 @@ impl Minix {
     }
 
     pub fn syscall(&self, bx: u16, dmem: &mut [u8]) {
-        let mut idx = bx;
-        println!("bx: {:04x}", bx);
+        let mut idx = bx;        
         let m_source = Minix::fetch2(idx, dmem);
         idx += 2;
         let m_type = Minix::fetch2(idx, dmem);
         idx += 2;
 
-        println!("m_source {}, m_type {}", m_source, m_type);
+        //println!("m_source {}, m_type {}", m_source, m_type);
         match m_type {
             4 => {                
                 self.write(idx, dmem);
@@ -41,7 +45,21 @@ impl Minix {
         idx += 4;
         let buffer = Minix::fetch2(idx, dmem);
 
-        println!("{}:{:04x}:{}", fd, buffer, nbytes);
+        let bptr: *const u8 = &dmem[buffer as usize] as *const u8;
+
+        if self.debug {
+            eprint!("<write({}, 0x{:04x}, {})", fd, buffer, nbytes);
+        }
+        unsafe { 
+            let ret = sys_write(fd, bptr, nbytes); 
+            if self.debug {
+                eprintln!(" => {}>", ret);
+            }
+        }
+
+
+
+        
         
 
     }

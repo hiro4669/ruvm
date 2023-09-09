@@ -8,6 +8,9 @@ fn main() {
     binary::bintest();
     runtest();
     */
+
+
+
     let mut memory = [0; 0x10000];
 
     let binary: binary::Binary = binary::Binary::new("1s");
