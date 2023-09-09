@@ -79,6 +79,10 @@ impl Disasm {
         format!("{} {}, {}", "mov", reg_str, data_str)                
     }
 
+    pub fn show_syscall(_opinfo: &OpInfo) -> String {
+        "int 20".into()        
+    }
+
     pub fn get_reg_state(ax: *const u8, bx: *const u8, cx: *const u8, dx: *const u8, 
         sp: *const u8, bp: *const u8, si: *const u8, di: *const u8,
         o: bool, s: bool, z: bool, c: bool, prev_pc: u16) -> String {

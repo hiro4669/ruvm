@@ -1,4 +1,5 @@
 use super::disasm::Disasm;
+use super::minix::Minix;
 
 
 pub fn runtest() {
@@ -115,7 +116,6 @@ impl<'a> Runtime<'a> {
             cs: std::ptr::null_mut(),
             ss: std::ptr::null_mut(),
             ds: std::ptr::null_mut(),
-
         }
     }
 
@@ -252,26 +252,15 @@ impl<'a> Runtime<'a> {
                     (self.oi.w, self.oi.reg)= Runtime::get_reg_w(op);
                     self.oi.imd16 = self.get_data(self.oi.w);
                     self.write_to_reg(self.oi.reg, self.oi.w, self.oi.imd16); // behavior
-                    callback = Some(Disasm::show_mov);
+                    callback = Some(Disasm::show_mov);                   
+                }
+                0xcd => {
+                    let tp = self.fetch();                    
+                    eprintln!("{}", self.disasm.get_log(&self, &Disasm::show_syscall(&self.oi))); 
+                    Minix::syscall(self.regs[3], &mut self.data);
 
-                    //let reglog = self.getRegLog();
-                    //eprintln!("{}", reglog);
-                    
-                    //eprintln!("{}", self.disasm.get_raw());                    
-                    
-                    //Disasm::show_reg_state(self.ax as *const u8);
-                    /*
-                    let rstate = Disasm::get_reg_state(self.ax as *const u8, 
-                        self.bx as *const u8, self.cx as *const u8, self.dx as *const u8, 
-                        self.sp as *const u8, self.bp as *const u8, self.si as *const u8, self.di as *const u8,
-                        self.o(), self.s(), self.z(), self.c(), self.prev_pc);
-                    */
-                    //eprintln!("{}", rstate);
-
-                    //eprintln!("{}", Disasm::get_reg_state2(&self));
-                    //eprintln!("{}", self.disasm.get_log(&self));
-                    
-                }   
+                    std::process::exit(1);
+                }
                 _ => {
                     println!("unrecognized operator {:02x}", op);
                     std::process::exit(1);
@@ -288,6 +277,7 @@ impl<'a> Runtime<'a> {
                 self.disasm.clear();
             }
             self.oi.clear();
+            callback = None;
             
 
 
