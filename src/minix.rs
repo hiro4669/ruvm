@@ -1,11 +1,12 @@
 
 pub struct Minix {    
+    debug: bool
 }
 
 impl Minix {
-    pub fn new() -> Self {
+    pub fn new(dbg: bool) -> Self {
         Self {
-
+            debug: dbg,
         }
     }
 
@@ -15,7 +16,7 @@ impl Minix {
         (val2 as u16) << 8 | val1 as u16        
     }
 
-    pub fn syscall(bx: u16, dmem: &mut [u8]) {
+    pub fn syscall(&self, bx: u16, dmem: &mut [u8]) {
         let mut idx = bx;
         println!("bx: {:04x}", bx);
         let m_source = Minix::fetch2(idx, dmem);
@@ -26,13 +27,13 @@ impl Minix {
         println!("m_source {}, m_type {}", m_source, m_type);
         match m_type {
             4 => {                
-                Minix::write(idx, dmem);
+                self.write(idx, dmem);
             }
             _ => panic!("not supported {}", m_type),
         }
     }
 
-    pub fn write(idx_: u16, dmem : &mut [u8]) {        
+    pub fn write(&self, idx_: u16, dmem : &mut [u8]) {        
         let mut idx = idx_;
         let fd = Minix::fetch2(idx, dmem);
         idx += 2;

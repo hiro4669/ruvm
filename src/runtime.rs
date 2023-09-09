@@ -49,6 +49,7 @@ pub struct Runtime<'a> {
     prev_pc: u16,
     debug: bool,
     disasm: Disasm,
+    os: Minix,
     oi: OpInfo,
 
     ax: *mut u16,
@@ -90,6 +91,7 @@ impl<'a> Runtime<'a> {
             debug: true,
             disasm: Disasm::new(),            
             oi: OpInfo::new(),
+            os: Minix::new(true),
 
             ax: std::ptr::null_mut(),
             al: std::ptr::null_mut(),
@@ -256,8 +258,8 @@ impl<'a> Runtime<'a> {
                 }
                 0xcd => {
                     let tp = self.fetch();                    
-                    eprintln!("{}", self.disasm.get_log(&self, &Disasm::show_syscall(&self.oi))); 
-                    Minix::syscall(self.regs[3], &mut self.data);
+                    eprintln!("{}", self.disasm.get_log(&self, &Disasm::show_syscall(&self.oi)));                     
+                    self.os.syscall(self.regs[3], &mut self.data);
 
                     std::process::exit(1);
                 }
