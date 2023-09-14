@@ -1,19 +1,42 @@
 use ruvm::binary;
-//use ruvm::runtime::runtest;
 use ruvm::runtime;
+use clap::Parser;
+
+#[derive(Parser)]
+#[command(name = "RMVM")]
+#[command(author = "Hiroaki Fukuda <hiroaki@java2.jp>")]
+#[command(version = "1.0")]
+#[command(about = "8086 with Minix Interpreter")]
+struct Config {  
+
+    /// Disassemble
+    #[arg(short)]
+    disassemble: bool,
+
+    /// Run with states
+    #[arg(short)]
+    microexec: bool,
+
+    file: Option<String>,
+}
 
 fn main() {
-    /*
-    println!("Hello, world!");
-    binary::bintest();
-    runtest();
-    */
 
+    let config = Config::parse();
 
+    println!("disasm = {:?}", config.disassemble);
+
+    if let Some(fname) = config.file.as_deref() {
+        eprintln!("fname = {}", fname);
+    } else {
+        eprintln!("usage:");
+        std::process::exit(1);
+    }
 
     let mut memory = [0; 0x10000];
 
-    let binary: binary::Binary = binary::Binary::new("1s");
+    //let binary: binary::Binary = binary::Binary::new("1s");
+    let binary: binary::Binary = binary::Binary::new(config.file.unwrap().as_str());
 
     let text = binary.get_text();
     for i in 0 .. text.len() {
@@ -32,11 +55,19 @@ fn main() {
 
     binary.show();
     println!("memlen = {}", memory.len());
-    
-    let mut runtime = runtime::Runtime::new(text);
-    runtime.init();
-    runtime.load_data(data);
-    runtime.run();
-    //runtime.show();
 
+    if config.disassemble {
+        eprintln!("not implemented yet");
+        std::process::exit(1);
+    } else if config.microexec {
+        let mut runtime = runtime::Runtime::new(text);
+        runtime.init();
+        runtime.load_data(data);
+        runtime.run();
+    } else {
+        let mut runtime = runtime::Runtime::new(text);
+        runtime.init();
+        runtime.load_data(data);
+        runtime.run();
+    }
 }
