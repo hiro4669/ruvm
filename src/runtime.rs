@@ -13,28 +13,44 @@ const C_BIT:u16 = 0x0001;
 
 pub struct OpInfo {
     pub d: u8,
+    pub s: u8,
     pub w: u8,
+    pub m: u8,
     pub reg: u8,
     pub rm: u8,
-    pub imd16: u16,
+    pub imd16: u16, // immediate data
+    pub eaddr: u16, // effective address
+
+    pub memval: u16 // for -m mode
 }
 
 impl OpInfo {
     pub fn new() -> Self {
         OpInfo {
             d: 0,
+            s: 0,
             w: 0,
+            m: 0,
             reg: 0,
             rm: 0,
             imd16: 0,
+            eaddr: 0,
+            memval: 0,
+
+            
+            
         }
     }
     pub fn clear(&mut self) {
         self.d = 0;
+        self.s = 0;
         self.w = 0;
+        self.m = 0;
         self.reg = 0;
         self.rm = 0;        
         self.imd16 = 0;
+        self.eaddr = 0;
+        self.memval = 0;
     }
 }
 
@@ -205,11 +221,89 @@ impl<'a> Runtime<'a> {
         (op >> 3 & 1, op & 7)        
     }
 
-    fn get_data(&mut self, w: u8) -> u16 {
+    fn get_mod_reg_rm(arg: u8) -> (u8, u8, u8) {        
+        (arg >> 6 & 3, arg >> 3 & 7, arg & 7)           
+    }
+
+    fn get_sw(arg: u8) -> (u8, u8) {
+        (arg >> 1 & 1, arg & 1)
+    }
+
+    fn get_eaddr(&mut self) -> &mut Runtime<'a> {        
+        if self.oi.m == 0 && self.oi.rm == 6 {
+            self.oi.eaddr = self.fetch2();            
+        }
+        self
+    }
+
+    fn read_effective(&mut self) -> u16 {
+        /*
+        eprintln!("mod:{}, rm:{}", self.oi.m, self.oi.rm);
+        let src:u8 = 0xf0;
+        let convert:i16 = src as i8 as i16;
+        let fst = (convert & 0xff) as u8;
+        let snd: u8 = ((convert >> 8) & 0xff) as u8;
+
+        println!("aaa {:04x}", src as i16);
+        println!("convert: {:04x}", convert);
+        println!("{:04x}", convert);
+        println!("1:{:02x}, 2:{:02x}", fst, snd);
+        */
+        if self.oi.m == 0 && self.oi.rm == 6 {            
+            match self.oi.w {
+                0 => {
+                    panic!("not confirmed yet");
+                    return self.data[self.oi.eaddr as usize] as u16;
+                }
+                1 => {
+                    // [Todo] create a useful function
+                    let val = (self.data[self.oi.eaddr as usize] as u16 
+                        | (self.data[self.oi.eaddr as usize + 1] as u16) << 8) as u16;
+                    if self.debug {
+                        self.oi.memval = val;
+                    }
+                    return val;
+                }
+                _ => panic!("impossible w"),
+            }
+        }
+        0
+    }
+
+
+    fn write_effective(&mut self, val: u16) {
+        if self.oi.m == 3 {
+            panic!("treat as register in write_effective");
+            return;
+        }
+        match self.oi.w {
+            0 => {
+                self.data[self.oi.eaddr as usize] = (val & 0xff) as u8;                
+            }
+            1 => {
+                self.data[self.oi.eaddr as usize] = (val & 0xff) as u8;
+                self.data[self.oi.eaddr as usize + 1] = ((val >> 8) & 0xff) as u8;
+
+            }
+            _ => panic!("impossible"),
+        }
+        
+    }
+
+
+    fn get_data(&mut self, w: u8) -> u16 {       
         match w {
-            0 => self.fetch() as u16,
-            1 => self.fetch2(),
+            0 => { self.oi.imd16 = self.fetch() as u16; }
+            1 => { self.oi.imd16 = self.fetch2(); }
             _ => panic!("no such w: {}", w)
+        }
+        self.oi.imd16
+    }
+
+    fn get_data_sw(&mut self) -> u16 {
+        match (self.oi.s, self.oi.w) {
+            (0, 1) => self.get_data(1),
+            _ => self.get_data(0),
         }
     }
 
@@ -253,9 +347,19 @@ impl<'a> Runtime<'a> {
             }
 
             match op {
-                0xbb => {
+
+                0x80 ..= 0x83 => {
+                    (self.oi.s, self.oi.w) = Runtime::get_sw(op);
+                    (self.oi.m, self.oi.reg, self.oi.rm) = Runtime::get_mod_reg_rm(self.fetch());                    
+                    let dst = self.get_eaddr().read_effective();
+                    self.get_data_sw(); // read imdata
+                    let val = dst as i16 - self.oi.imd16 as i16;                    
+                    self.write_effective(val as u16);
+                    callback = Some(Disasm::show_sub);                                    
+                }
+                0xbb => { // mov
                     (self.oi.w, self.oi.reg)= Runtime::get_reg_w(op);
-                    self.oi.imd16 = self.get_data(self.oi.w);
+                    self.get_data(self.oi.w);
                     self.write_to_reg(self.oi.reg, self.oi.w, self.oi.imd16); // behavior
                     callback = Some(Disasm::show_mov);                   
                 }

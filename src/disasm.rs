@@ -79,27 +79,23 @@ impl Disasm {
         format!("{} {}, {}", "mov", reg_str, data_str)                
     }
 
+    pub fn show_sub(opinfo: &OpInfo) -> String {
+//        let rm = format!("[:04x]", opInfo.eadd;
+        let rm = format!("[{:04x}]", opinfo.eaddr);
+        if opinfo.m == 3 {
+            panic!("r/m should be register");
+        }
+
+        match (opinfo.s, opinfo.w) {
+            (0, 1) => format!("{} {}, {:04x}", "sub", rm, opinfo.imd16),            
+            _ => format!("{} {}, {:02x}", "sub", rm, opinfo.imd16),
+        }        
+    }
+
     pub fn show_syscall(_opinfo: &OpInfo) -> String {
         "int 20".into()        
     }
-
-    /*
-    pub fn get_reg_state(ax: *const u8, bx: *const u8, cx: *const u8, dx: *const u8, 
-        sp: *const u8, bp: *const u8, si: *const u8, di: *const u8,
-        o: bool, s: bool, z: bool, c: bool, prev_pc: u16) -> String {
-        unsafe {
-            format!("{:04x} {:04x} {:04x} {:04x} {:04x} {:04x} {:04x} {:04x} {}{}{}{} {:04x}", 
-                *ax, *bx, *cx, *dx, *sp, *bp, *si, *di,
-                if o { "O" } else { "-" },
-                if s { "S" } else { "-" },
-                if z { "Z" } else { "-" },
-                if c { "C" } else { "-" },
-                prev_pc
-            )
-        }
-    }
-    */
-
+    
     pub fn get_log(&self, reginfo: &str, asm: &str) -> String {
         //let reginfo = Disasm::get_reg_state(runtime);
         let rawinfo = self.get_raw();
