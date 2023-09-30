@@ -353,7 +353,14 @@ impl<'a> Runtime<'a> {
                     (self.oi.m, self.oi.reg, self.oi.rm) = Runtime::get_mod_reg_rm(self.fetch());                    
                     let dst = self.get_eaddr().read_effective();
                     self.get_data_sw(); // read imdata
-                    let val = dst as i16 - self.oi.imd16 as i16;                    
+                    //let val = dst as i16 - self.oi.imd16 as i16; // sub
+                    //println!("{:04x} - {:04x}", dst, self.oi.imd16);
+                    //println!("val = {:04x}", val);
+
+                    // test
+                    let c_flg = dst.overflowing_sub(self.oi.imd16).1;                    
+                    let (val, o_flg) = (dst as i16).overflowing_sub(self.oi.imd16 as i16);                    
+                    self.set_flags(c_flg, val == 0, val < 0, o_flg);
                     self.write_effective(val as u16);
                     callback = Some(Disasm::show_sub);                                    
                 }
@@ -361,6 +368,7 @@ impl<'a> Runtime<'a> {
                     (self.oi.w, self.oi.reg)= Runtime::get_reg_w(op);
                     self.get_data(self.oi.w);
                     self.write_to_reg(self.oi.reg, self.oi.w, self.oi.imd16); // behavior
+                    
                     callback = Some(Disasm::show_mov);                   
                 }
                 0xcd => {
@@ -400,6 +408,13 @@ impl<'a> Runtime<'a> {
 
     fn f_check(val: u16, mask: u16) -> bool {
         if val & mask == 0 { false } else { true }        
+    }
+
+    fn set_flags(&mut self, c: bool, z: bool, s: bool, o: bool) {
+        if c { self.sreg |=  C_BIT; } else { self.sreg &= !C_BIT}
+        if z { self.sreg |=  Z_BIT; } else { self.sreg &= !Z_BIT}
+        if s { self.sreg |=  S_BIT; } else { self.sreg &= !S_BIT}
+        if o { self.sreg |=  O_BIT; } else { self.sreg &= !O_BIT}
     }
 
     pub fn c(&self) -> bool {
