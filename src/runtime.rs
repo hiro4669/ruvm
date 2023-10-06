@@ -21,7 +21,8 @@ pub struct OpInfo {
     pub imd16: u16, // immediate data
     pub eaddr: u16, // effective address
 
-    pub memval: u16 // for -m mode
+    pub memval: Option<String> // for -m mode
+
 }
 
 impl OpInfo {
@@ -35,9 +36,7 @@ impl OpInfo {
             rm: 0,
             imd16: 0,
             eaddr: 0,
-            memval: 0,
-
-            
+            memval: None,            
             
         }
     }
@@ -50,7 +49,7 @@ impl OpInfo {
         self.rm = 0;        
         self.imd16 = 0;
         self.eaddr = 0;
-        self.memval = 0;
+        self.memval = None;
     }
 }
 
@@ -189,6 +188,7 @@ impl<'a> Runtime<'a> {
         }        
     }
 
+    /*
     fn showHeader() {
         eprintln!(" AX   BX   CX   DX   SP   BP   SI   DI  FLAGS IP");
     }
@@ -204,6 +204,7 @@ impl<'a> Runtime<'a> {
             self.prev_pc,)
         }
     }
+    */
 
     fn fetch(&mut self) -> u8 {
         let val = self.text[self.pc as usize];
@@ -229,11 +230,76 @@ impl<'a> Runtime<'a> {
         (arg >> 1 & 1, arg & 1)
     }
 
+    fn get_dw(arg: u8) -> (u8, u8) {
+        (arg >> 1 & 1, arg & 1)
+    }
+
     fn get_eaddr(&mut self) -> &mut Runtime<'a> {        
         if self.oi.m == 0 && self.oi.rm == 6 {
-            self.oi.eaddr = self.fetch2();            
+            self.oi.eaddr = self.fetch2();
+            return self;
         }
+
+        println!("mod = {}, rm = {}", self.oi.m, self.oi.rm);
+
+        match self.oi.m {
+            0 => {
+                panic!("not yet implemented");
+            }
+            1 => {
+                panic!("not yet implemented");
+            }
+            2 => {
+                panic!("not yet implemented");
+            }
+            3 => {
+                self.oi.eaddr = self.oi.rm as u16;                
+            }
+            _ => panic!("no such pattern in get_eaddr"),
+        }
+        
         self
+    }
+
+    fn get_data(&mut self, w: u8) -> u16 {       
+        match w {
+            0 => { self.oi.imd16 = self.fetch() as u16; }
+            1 => { self.oi.imd16 = self.fetch2(); }
+            _ => panic!("no such w: {}", w)
+        }
+        self.oi.imd16
+    }
+
+    fn get_data_sw(&mut self) -> u16 {
+        match (self.oi.s, self.oi.w) {
+            (0, 1) => self.get_data(1),
+            _ => self.get_data(0),
+        }
+    }
+
+    fn read_register(&self, reg: u8) -> u16 {
+        match self.oi.w {            
+            0 => {
+                unsafe {
+                    match reg {
+                        0 => { return *self.al as u16; }
+                        1 => { return *self.cl as u16; }
+                        2 => { return *self.dl as u16; }
+                        3 => { return *self.bl as u16; }
+                        4 => { return *self.ah as u16; }
+                        5 => { return *self.ch as u16; }
+                        6 => { return *self.dh as u16; }
+                        7 => { return *self.bh as u16; }
+                        _ => panic!("not supported"),
+                    }
+                }
+            }
+            1 => {
+                return self.regs[reg as usize];
+            }
+            _ => panic!(),
+        }
+        0
     }
 
     fn read_effective(&mut self) -> u16 {
@@ -252,20 +318,40 @@ impl<'a> Runtime<'a> {
         if self.oi.m == 0 && self.oi.rm == 6 {            
             match self.oi.w {
                 0 => {
-                    panic!("not confirmed yet");
-                    return self.data[self.oi.eaddr as usize] as u16;
+                    panic!("not confirmed yet");                    
+                    //return self.data[self.oi.eaddr as usize] as u16;
                 }
                 1 => {
                     // [Todo] create a useful function
                     let val = (self.data[self.oi.eaddr as usize] as u16 
                         | (self.data[self.oi.eaddr as usize + 1] as u16) << 8) as u16;
-                    if self.debug {
-                        self.oi.memval = val;
+                    if self.debug {                        
+                        let memval_str = format!(" ;[{:04x}]{:04x}", self.oi.eaddr, val);
+                        self.oi.memval = Some(memval_str);
                     }
                     return val;
                 }
                 _ => panic!("impossible w"),
             }
+        }
+
+        match self.oi.m {
+            0 => {
+                panic!("not implemented yet");
+            }
+            1 => {
+                panic!("not implemented yet");
+            }
+            2 => {
+                panic!("not implemented yet");
+            }
+            3 => {
+                println!("read as register");
+                return self.read_register(self.oi.eaddr as u8);
+                
+
+            }
+            _ => panic!("impossible"),
         }
         0
     }
@@ -273,8 +359,7 @@ impl<'a> Runtime<'a> {
 
     fn write_effective(&mut self, val: u16) {
         if self.oi.m == 3 {
-            panic!("treat as register in write_effective");
-            return;
+            self.write_register(self.oi.eaddr as u8, self.oi.w, val);
         }
         match self.oi.w {
             0 => {
@@ -290,24 +375,7 @@ impl<'a> Runtime<'a> {
         
     }
 
-
-    fn get_data(&mut self, w: u8) -> u16 {       
-        match w {
-            0 => { self.oi.imd16 = self.fetch() as u16; }
-            1 => { self.oi.imd16 = self.fetch2(); }
-            _ => panic!("no such w: {}", w)
-        }
-        self.oi.imd16
-    }
-
-    fn get_data_sw(&mut self) -> u16 {
-        match (self.oi.s, self.oi.w) {
-            (0, 1) => self.get_data(1),
-            _ => self.get_data(0),
-        }
-    }
-
-    fn write_to_reg(&mut self, reg: u8, w: u8, data: u16) {
+    fn write_register(&mut self, reg: u8, w: u8, data: u16) {
         match w {
             0 => {
                 eprintln!("not impleented 0 in writeToReg");
@@ -347,8 +415,46 @@ impl<'a> Runtime<'a> {
             }
 
             match op {
+                0x30 ..= 0x33 => {// xor
+                    (self.oi.d, self.oi.w) = Runtime::get_dw(op);
+                    (self.oi.m, self.oi.reg, self.oi.rm) = Runtime::get_mod_reg_rm(self.fetch());
 
-                0x80 ..= 0x83 => {
+                    let eval = self.get_eaddr().read_effective();
+                    println!("eval = {:x}", eval);
+                    let rval = self.read_register(self.oi.reg);
+                    println!("rval = {:x}", rval);
+
+                    let val16 = eval ^ rval;
+
+                    
+                    match self.oi.d {
+                        0 => { // to r/m
+                            //println!("to r/m");
+                            self.write_effective(val16);
+                        },
+                        1 => { // to register                            
+                            println!("to register");
+                        },
+                        _ => panic!("impossible"),
+                    }
+
+                    match self.oi.w {
+                        0 => {
+                            let ival8 = (val16 & 0xff) as i8;
+                            // self.set_flags...
+                            panic!("not implemented yet ");
+                        }
+                        1 => {
+                            let ival16 = val16 as i16;
+                            self.set_flags(false, ival16 == 0, ival16 < 0, false);
+
+                        }
+                        _ => panic!("impossible"),
+                    }
+                    callback = Some(Disasm::show_xor);
+                    
+                }                
+                0x80 ..= 0x83 => { // sub
                     (self.oi.s, self.oi.w) = Runtime::get_sw(op);
                     (self.oi.m, self.oi.reg, self.oi.rm) = Runtime::get_mod_reg_rm(self.fetch());                    
                     let dst = self.get_eaddr().read_effective();
@@ -367,13 +473,13 @@ impl<'a> Runtime<'a> {
                 0xbb => { // mov
                     (self.oi.w, self.oi.reg)= Runtime::get_reg_w(op);
                     self.get_data(self.oi.w);
-                    self.write_to_reg(self.oi.reg, self.oi.w, self.oi.imd16); // behavior
+                    self.write_register(self.oi.reg, self.oi.w, self.oi.imd16); // behavior
                     
                     callback = Some(Disasm::show_mov);                   
                 }
                 0xcd => {
-                    let tp = self.fetch();                    
-                    eprintln!("{}", self.disasm.get_log(&regstatus, &Disasm::show_syscall(&self.oi)));                     
+                    let _tp = self.fetch();                    
+                    eprintln!("{}", self.disasm.get_log(&regstatus, &Disasm::show_syscall(&self.oi), &self.oi.memval));                     
                     self.os.syscall(self.regs[3], &mut self.data);                    
                 }
                 _ => {
@@ -386,7 +492,7 @@ impl<'a> Runtime<'a> {
             
             if self.debug {                
                 if let Some(f) = callback {
-                    eprintln!("{}", self.disasm.get_log(&regstatus, &f(&self.oi)));
+                    eprintln!("{}", self.disasm.get_log(&regstatus, &f(&self.oi), &self.oi.memval));
                     //eprintln!("{}", f(&self.oi));            
                 } 
                 self.disasm.clear();

@@ -1,5 +1,6 @@
 
 extern "C" {
+    #[allow(dead_code)]
     fn hello() -> ();
     fn sys_write(fildes: u16, buffer: *const u8, nbytes: u16) -> u16;
 }
@@ -23,7 +24,7 @@ impl Minix {
 
     pub fn syscall(&self, bx: u16, dmem: &mut [u8]) {
         let mut idx = bx;        
-        let m_source = Minix::fetch2(idx, dmem);
+        let _m_source = Minix::fetch2(idx, dmem);
         idx += 2;
         let m_type = Minix::fetch2(idx, dmem);
         idx += 2;
