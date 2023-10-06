@@ -5,6 +5,7 @@ pub fn bintest() {
 }
 
 pub struct Binary {
+    #[allow(dead_code)]
     fname: String,
     aout: Vec<u8>,
 }

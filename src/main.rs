@@ -33,7 +33,7 @@ fn main() {
         std::process::exit(1);
     }
 
-    let mut memory = [0; 0x10000];
+//    let mut memory = [0; 0x10000];
 
     //let binary: binary::Binary = binary::Binary::new("1s");
     let binary: binary::Binary = binary::Binary::new(config.file.unwrap().as_str());
@@ -54,7 +54,7 @@ fn main() {
     println!("");
 
     binary.show();
-    println!("memlen = {}", memory.len());
+    //println!("memlen = {}", memory.len());
 
     if config.disassemble {
         eprintln!("not implemented yet");

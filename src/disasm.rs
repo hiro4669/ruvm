@@ -58,6 +58,23 @@ impl Disasm {
         }
     }
 
+    fn get_rm(m: & u8, rm: &u8, w: &u8, reg:& u8, eaddr: &u16) -> String {
+        if *m == 0 && *rm == 6 {
+            return format!("[{:04x}]", eaddr);
+        }
+
+        if *m == 3 {
+            return Disasm::get_reg(reg, w).to_string();
+        }
+
+        match rm {
+            0 => {},
+            _ => panic!("not implemented yet"),
+        }
+
+        "".to_string()
+    }
+
     fn format_val16(val: &u16) -> String { format!("{:04x}", *val) }
     fn format_val8(val: &u8) -> String { format!("{:x}", *val) }
 
@@ -80,28 +97,40 @@ impl Disasm {
     }
 
     pub fn show_sub(opinfo: &OpInfo) -> String {
-//        let rm = format!("[:04x]", opInfo.eadd;
-        let rm = format!("[{:04x}]", opinfo.eaddr);
-        if opinfo.m == 3 {
-            panic!("r/m should be register");
-        }
-
+        //let rm = format!("[{:04x}]", opinfo.eaddr); // should be replaced
+        let rm = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr);
         match (opinfo.s, opinfo.w) {
             (0, 1) => format!("{} {}, {:04x}", "sub", rm, opinfo.imd16),            
             _ => format!("{} {}, {:02x}", "sub", rm, opinfo.imd16),
         }        
     }
 
+    pub fn show_xor(opinfo: &OpInfo) -> String {
+        let reg_str = Disasm::get_reg(&opinfo.reg, &opinfo.w);
+        let rm_str = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr);
+        let mut arg_str = format!("{}, {}", rm_str, reg_str);
+        if opinfo.d == 1 {
+            arg_str = format!("{}, {}", reg_str, rm_str);
+        }
+        format!("{} {}", "xor", arg_str)
+    }
+
     pub fn show_syscall(_opinfo: &OpInfo) -> String {
         "int 20".into()        
     }
     
-    pub fn get_log(&self, reginfo: &str, asm: &str) -> String {
+    pub fn get_log(&self, reginfo: &str, asm: &str, meminfo: &Option<String>) -> String {
         //let reginfo = Disasm::get_reg_state(runtime);
         let rawinfo = self.get_raw();
 
-        reginfo.to_string() + ":" + &rawinfo +  &" ".repeat(14 - rawinfo.len()) + asm
+        let mut log_str = reginfo.to_string() + ":" + &rawinfo +  &" ".repeat(14 - rawinfo.len()) + asm;
+        if let Some(v) = meminfo {
+            log_str += v;
+        }
+
+        return log_str;
     }
+
 
     pub fn get_reg_state(runtime: &Runtime) -> String {
         let regs = runtime.get_regs();
