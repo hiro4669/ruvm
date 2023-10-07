@@ -58,27 +58,39 @@ impl Disasm {
         }
     }
 
-    fn get_rm(m: & u8, rm: &u8, w: &u8, reg:& u8, eaddr: &u16) -> String {
+    fn get_rm(m: & u8, rm: &u8, w: &u8, reg:& u8, eaddr: &u16, disp: &i16) -> String {
         if *m == 0 && *rm == 6 {
             return format!("[{:04x}]", eaddr);
         }
 
         if *m == 3 {
-            return Disasm::get_reg(reg, w).to_string();
+            return Disasm::get_reg(rm, w).to_string();
         }
 
         match rm {
-            0 => {},
+            7 => {
+                if *disp == 0 {
+                    return "[bx]".to_string();
+                } else {
+                    panic!("not implemented yet");
+                }
+            }
             _ => panic!("not implemented yet"),
-        }
-
-        "".to_string()
+        }        
     }
 
     fn format_val16(val: &u16) -> String { format!("{:04x}", *val) }
     fn format_val8(val: &u8) -> String { format!("{:x}", *val) }
 
-    fn to_string(w: &u8, data: &u16) -> String {
+    fn fix_direction(d: &u8, reg_str: &str, rm_str: &str) -> String {
+        match d {
+            0 => format!("{}, {}", rm_str, reg_str),
+            1 => format!("{}, {}", reg_str, rm_str),            
+            _ => panic!("no such d"),
+        }
+    }
+
+    fn data_to_string(w: &u8, data: &u16) -> String {
         match w {
             0 => {                
                 Disasm::format_val8(&((*data & 0xff) as u8))
@@ -90,15 +102,23 @@ impl Disasm {
         }
     }
 
-    pub fn show_mov(opinfo: &OpInfo) -> String {
-        let data_str = Disasm::to_string(&opinfo.w, &opinfo.imd16);
+
+
+    pub fn show_mov1(opinfo: &OpInfo) -> String {
+        let data_str = Disasm::data_to_string(&opinfo.w, &opinfo.imd16);
         let reg_str = Disasm::get_reg(&opinfo.reg, &opinfo.w);
         format!("{} {}, {}", "mov", reg_str, data_str)                
     }
 
+    pub fn show_mov2(opinfo: &OpInfo) -> String {
+        let reg_str = Disasm::get_reg(&opinfo.reg, &opinfo.w);
+        let rm_str = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr, &opinfo.disp);
+        format!("{} {}", "mov", Disasm::fix_direction(&opinfo.d, reg_str, &rm_str))
+    }
+
     pub fn show_sub(opinfo: &OpInfo) -> String {
         //let rm = format!("[{:04x}]", opinfo.eaddr); // should be replaced
-        let rm = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr);
+        let rm = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr, &opinfo.disp);
         match (opinfo.s, opinfo.w) {
             (0, 1) => format!("{} {}, {:04x}", "sub", rm, opinfo.imd16),            
             _ => format!("{} {}, {:02x}", "sub", rm, opinfo.imd16),
@@ -107,7 +127,7 @@ impl Disasm {
 
     pub fn show_xor(opinfo: &OpInfo) -> String {
         let reg_str = Disasm::get_reg(&opinfo.reg, &opinfo.w);
-        let rm_str = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr);
+        let rm_str = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr, &opinfo.disp);
         let mut arg_str = format!("{}, {}", rm_str, reg_str);
         if opinfo.d == 1 {
             arg_str = format!("{}, {}", reg_str, rm_str);
