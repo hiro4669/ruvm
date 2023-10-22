@@ -11,6 +11,15 @@ const S_BIT:u16 = 0x0080;
 const Z_BIT:u16 = 0x0040;
 const C_BIT:u16 = 0x0001;
 
+const AX: u8 = 0;
+const CX: u8 = 1;
+const DX: u8 = 2;
+const BX: u8 = 3;
+const SP: u8 = 4;
+const BP: u8 = 5;
+const SI: u8 = 6;
+const DI: u8 = 7;
+
 pub struct OpInfo {
     pub d: u8,
     pub s: u8,
@@ -169,14 +178,125 @@ impl<'a> Runtime<'a> {
             self.bh = self.bl.offset(1);
         
              // for test
-            *self.sp = 0xffe0;
+            //*self.sp = 0xffe0;
         }
         
+    }
+    
+    fn get_reg(&self, reg:u8) -> u16 {
+        return self.regs[reg as usize];
+    }
+
+    fn set_reg(&mut self, reg:u8, val: u16) {
+        self.regs[reg as usize] = val;
+    }
+
+    fn set_sp(&mut self, val: u16) {        
+        self.set_reg(SP, val);
+    }
+
+    fn get_sp(&self) -> u16 {
+        self.get_reg(SP)
+    }
+
+    fn push_byte(&mut self, val: u8) {
+        self.dec_sp();
+        self.data[self.get_sp() as usize] = val;
+    }
+    pub fn dec_sp(&mut self) {
+        self.set_sp(self.get_sp().wrapping_sub(1));
+    }
+
+    pub fn inc_sp(&mut self) {
+        self.set_sp(self.get_sp().wrapping_add(1));
     }
 
     pub fn load_data(&mut self, data: &[u8]) {
         //println!("data len = {}", data.len());        
         self.data[..data.len()].clone_from_slice(data);        
+    }
+
+    pub fn init_stack(&mut self, args: &[String]) {
+        let psize: u16 = 2; // size of pointer;
+        let env = "PATH=/usr:/usr/bin";
+        let mut frame_size:u16 = 0;
+
+        let mut offset = 0;
+        // for args
+        for arg in args {
+            frame_size += arg.len() as u16 + 1;
+            frame_size += psize;
+            offset += psize;            
+        }
+
+        // for env
+        frame_size += env.len() as u16 + 1;
+        frame_size += psize;
+        offset += psize;
+        
+        // for null pointer and size of argument
+        frame_size += psize + psize + 2;
+        offset += psize + psize + 2;
+
+        // alignment
+        if frame_size % 2 == 1 { frame_size += 1}
+
+        //println!("frame_size = {:04x}", frame_size);                
+        //let nsp = self.data.len() - frame_size as usize;
+        //self.set_sp(nsp as u16); // initial stack pointer
+        self.set_sp((self.data.len() - frame_size as usize) as u16);
+
+        let nsp = self.get_sp() as usize;
+        
+        let mut vp = nsp + 2;
+        let mut strp: usize = nsp + offset as usize;
+
+        println!("nsp = {:04x}", nsp);
+        println!("vp  = {:04x}", vp);
+        println!("strp= {:04x}", strp);
+
+        // push arg number
+        let arg_size = args.len() as u16;
+        self.data[nsp] = (arg_size & 0xff) as u8;
+        self.data[nsp + 1] = (arg_size >> 8 & 0xff) as u8;
+
+        // push arguments
+        for arg in args {
+            let ary = arg.as_bytes();
+            self.data[vp]   = (strp & 0xff) as u8;
+            self.data[vp+1] = (strp >> 8 & 0xff) as u8;
+            for b in ary {
+                self.data[strp] = *b;
+                strp += 1;
+            }
+            self.data[strp] = 0; //
+            strp += 1;
+            vp += 2;
+            (self.data[vp], self.data[vp+1]) = (0, 0);
+            vp += 2;
+        }
+
+        // push environment
+        let ary = env.as_bytes();
+        self.data[vp]   = (strp & 0xff) as u8;
+        self.data[vp+1] = (strp >> 8 & 0xff) as u8;
+        for b in ary {
+            self.data[strp] += *b;
+            strp += 1;
+        }
+        self.data[strp] = 0;
+
+        /*
+        println!("--- stack info ---");        
+        for i in self.get_sp() ..= 0xffff {
+            if i % 16 == 0 {println!()}
+            print!("{:02x} ", self.data[i as usize]);
+        }
+        println!("\n-----------------");
+        */
+        
+
+        //std::process::exit(1);
     }
 
     pub fn show(&self) {         
@@ -320,8 +440,7 @@ impl<'a> Runtime<'a> {
                 return self.regs[reg as usize];
             }
             _ => panic!(),
-        }
-        0
+        }        
     }
 
     fn read_effective(&mut self) -> u16 {
