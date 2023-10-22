@@ -367,12 +367,17 @@ impl<'a> Runtime<'a> {
 
         //println!("mod = {}, rm = {}", self.oi.m, self.oi.rm);
         
+        // decide displacement
         match self.oi.m {
             0 => { // disp == 0
                 // do nothing
+                //eprintln!("m == 0 -> displacement is zero");
             }
             1 => {
-                panic!("not yet implemented");
+                self.oi.disp = (self.fetch() as i8) as i16;
+                //println!("disp = {}", self.oi.disp);
+                //8d5702
+                //10001101 01 010 111 02 --- m=1 reg=2 rm=7
             }
             2 => {
                 panic!("not yet implemented");
@@ -383,14 +388,13 @@ impl<'a> Runtime<'a> {
             }            
             _ => panic!("no such pattern in get_eaddr"),
         }
-
         
         match self.oi.rm {
             7 => {                
                 unsafe {
                     //let tad: i32 = *self.bx as i32;
-                    //self.oi.eaddr = (tad + disp as i32) as u16;                                        
-                    self.oi.eaddr = (*self.bx as i32 + self.oi.disp as i32) as u16;
+                    //self.oi.eaddr = (tad + disp as i32) as u16;                    
+                    self.oi.eaddr = (*self.bx as i32 + self.oi.disp as i32) as u16;                    
                 }
                 //println!("eader = {:04x}", self.oi.eaddr);
             },
@@ -443,23 +447,37 @@ impl<'a> Runtime<'a> {
         }        
     }
 
+    fn add_meminfo(&mut self, val: u16) {
+        if self.oi.w == 0 {
+            panic!("not implemented yet");
+        } else if self.oi.w == 1 {
+            let memval_str = format!(" ;[{:04x}]{:04x}", self.oi.eaddr, val);
+            self.oi.memval = Some(memval_str);
+        } else {
+            panic!("no such w");
+        }
+    }
+
+    fn read_memory(&self, addr: u16) -> u16 {
+        if self.oi.w == 0 {
+            panic!("not implemented yet");
+        } else if self.oi.w == 1 {
+            let val:u16 = (self.data[addr as usize] as u16 | (self.data[addr as usize + 1] as u16) << 8) as u16;
+            return val;
+        } else {
+            panic!("no such w");
+        }
+    }
+
     fn read_effective(&mut self) -> u16 {
         
         match self.oi.m {
             0 ..= 2 => {
-                if self.oi.w == 0 {
-                    panic!("not implemented yet");
-                } else if self.oi.w == 1 {
-                    let val = (self.data[self.oi.eaddr as usize] as u16 
-                        | (self.data[self.oi.eaddr as usize + 1] as u16) << 8) as u16;
-                    if self.debug {                        
-                        let memval_str = format!(" ;[{:04x}]{:04x}", self.oi.eaddr, val);                        
-                        self.oi.memval = Some(memval_str);
-                    }
-                    return val;
-                } else {
-                    panic!("no such w");
-                }                
+                let val = self.read_memory(self.oi.eaddr);
+                if self.debug {
+                    self.add_meminfo(val);
+                }
+                return val;
             }
             3 => {
                 return self.read_register(self.oi.eaddr as u8);
@@ -545,6 +563,10 @@ impl<'a> Runtime<'a> {
     
     fn get_dwmrrm(&mut self, op: &u8) {
         (self.oi.d, self.oi.w) = Runtime::get_dw(*op);
+        (self.oi.m, self.oi.reg, self.oi.rm) = Runtime::get_mod_reg_rm(self.fetch());
+    }
+
+    fn get_mrrm(&mut self) {
         (self.oi.m, self.oi.reg, self.oi.rm) = Runtime::get_mod_reg_rm(self.fetch());
     }
 
@@ -635,6 +657,17 @@ impl<'a> Runtime<'a> {
                     }
                     callback = Some(Disasm::show_mov2);
 
+                }
+                0x8d => { // lea
+                    self.get_mrrm();
+                    self.get_eaddr();                    
+                    self.oi.w = 1;
+                    self.write_register(self.oi.reg, self.oi.w, self.oi.eaddr);
+                    if self.debug {                                                
+                        self.add_meminfo(self.read_memory(self.oi.eaddr));
+                    }
+                    callback = Some(Disasm::show_lea);
+                                    
                 }
                 0xbb => { // mov
                     (self.oi.w, self.oi.reg)= Runtime::get_reg_w(op);

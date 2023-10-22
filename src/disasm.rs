@@ -72,7 +72,15 @@ impl Disasm {
                 if *disp == 0 {
                     return "[bx]".to_string();
                 } else {
-                    panic!("not implemented yet");
+                    if *disp < 0 {format!("[bx-{}]", -*disp)} else {format!("[bx+{}]", *disp)}
+                    /*
+                    let str = if *disp < 0 {
+                        format!("[bx-{}]", -*disp)
+                    } else {
+                        format!("[bx+{}]", *disp)
+                    };
+                    return str;                    
+                    */
                 }
             }
             _ => panic!("not implemented yet"),
@@ -103,6 +111,11 @@ impl Disasm {
     }
 
 
+    pub fn show_lea(opinfo: &OpInfo) -> String {
+        let reg_str = Disasm::get_reg(&opinfo.reg, &opinfo.w);        
+        let rm_str = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr, &opinfo.disp);
+        format!("{} {}, {}", "lea", reg_str, rm_str)        
+    }
 
     pub fn show_mov1(opinfo: &OpInfo) -> String {
         let data_str = Disasm::data_to_string(&opinfo.w, &opinfo.imd16);
