@@ -594,6 +594,33 @@ impl<'a> Runtime<'a> {
             }
 
             match op {
+                0x00 ..= 0x03 => { // add
+                    self.get_dwmrrm(&op);
+                    let eval = self.get_eaddr().read_effective();
+                    let rval = self.read_register(self.oi.reg);
+                    //println!("eval: {:04x}, rval: {:04x}", eval, rval);
+                    match op {
+                        0 => { // add r/m r8
+                            panic!("not implemented yet");
+                        }
+                        1 => { // add r/m r16                        
+                            let c_flg = eval.overflowing_add(rval).1; // carry flg
+                            let (val, o_flg) = (eval as i16).overflowing_add(rval as i16);
+                            self.write_effective(val as u16);                            
+                            self.set_flags(c_flg, val == 0, val < 0, o_flg);                            
+                        }
+                        2 => { // add r8 r/m
+                            panic!("not implemented yet");
+                        }
+                        3 => { // add r16 r/m
+                            panic!("not implemented yet");
+                        }
+                        _ => panic!("no such op in add"),
+                    }
+
+                    callback = Some(Disasm::show_add);                    
+                    
+                }
                 0x30 ..= 0x33 => {// xor
                     self.get_dwmrrm(&op);
                     let eval = self.get_eaddr().read_effective();
@@ -611,7 +638,7 @@ impl<'a> Runtime<'a> {
                         _ => panic!("impossible"),
                     }
 
-                    match self.oi.w {
+                    match self.oi.w { // for set flag
                         0 => {
                             let ival8 = (val16 & 0xff) as i8;
                             // self.set_flags...
@@ -630,16 +657,34 @@ impl<'a> Runtime<'a> {
                     (self.oi.m, self.oi.reg, self.oi.rm) = Runtime::get_mod_reg_rm(self.fetch());                    
                     let dst = self.get_eaddr().read_effective();
                     self.get_data_sw(); // read imdata
-                    //let val = dst as i16 - self.oi.imd16 as i16; // sub
-                    //println!("{:04x} - {:04x}", dst, self.oi.imd16);
-                    //println!("val = {:04x}", val);
+                    
+                    match op {
+                        0x80 => {
+                            panic!("not yet implemented");
+                        }
+                        0x81 => { // imd16
+                            let c_flg = dst.overflowing_sub(self.oi.imd16).1;                    
+                            let (val, o_flg) = (dst as i16).overflowing_sub(self.oi.imd16 as i16); 
+                            self.set_flags(c_flg, val == 0, val < 0, o_flg);                            
+                            
+                            match self.oi.reg {
+                                5 => {
+                                    self.write_effective(val as u16);
+                                    callback = Some(Disasm::show_sub);
+                                }
+                                7 => {
+                                    callback = Some(Disasm::show_cmp);
+                                }
+                                _ => panic!("no such reg pattern"),
+                            }
+                        }
+                        0x82 => panic!("no such op"),
+                        0x83 => {
+                            panic!("not yet implemented");
+                        }
+                        _ => panic!("no such pattern"),
+                    }
 
-                    // test
-                    let c_flg = dst.overflowing_sub(self.oi.imd16).1;                    
-                    let (val, o_flg) = (dst as i16).overflowing_sub(self.oi.imd16 as i16);                    
-                    self.set_flags(c_flg, val == 0, val < 0, o_flg);
-                    self.write_effective(val as u16);
-                    callback = Some(Disasm::show_sub);                                    
                 }
                 0x88 ..= 0x8b => { // mov
                     self.get_dwmrrm(&op);                    
