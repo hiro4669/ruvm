@@ -110,6 +110,19 @@ impl Disasm {
         }
     }
 
+    pub fn show_jnb(opinfo: &OpInfo) -> String {
+        format!("jnb {:04x}", opinfo.jpc)        
+    }
+
+    pub fn show_add(opinfo: &OpInfo) -> String {
+        let reg_str = Disasm::get_reg(&opinfo.reg, &opinfo.w);        
+        let rm_str = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr, &opinfo.disp);
+        let mut arg_str = format!("{}, {}", rm_str, reg_str);
+        if opinfo.d == 1 {
+            arg_str = format!("{}, {}", reg_str, rm_str);
+        }
+        format!("{} {}", "add", arg_str)        
+    }
 
     pub fn show_lea(opinfo: &OpInfo) -> String {
         let reg_str = Disasm::get_reg(&opinfo.reg, &opinfo.w);        
@@ -135,6 +148,14 @@ impl Disasm {
         match (opinfo.s, opinfo.w) {
             (0, 1) => format!("{} {}, {:04x}", "sub", rm, opinfo.imd16),            
             _ => format!("{} {}, {:02x}", "sub", rm, opinfo.imd16),
+        }        
+    }
+
+    pub fn show_cmp(opinfo: &OpInfo) -> String {
+        let rm = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr, &opinfo.disp);
+        match (opinfo.s, opinfo.w) {
+            (0, 1) => format!("{} {}, {:04x}", "cmp", rm, opinfo.imd16), 
+            _ => format!("{} {}, {:02x}", "cmp", rm, opinfo.imd16),
         }        
     }
 

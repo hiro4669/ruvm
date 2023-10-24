@@ -30,6 +30,7 @@ pub struct OpInfo {
     pub imd16: u16, // immediate data
     pub eaddr: u16, // effective address
     pub disp: i16,  // displacement
+    pub jpc: u16,   // program counter for jump instruction
 
     pub memval: Option<String> // for -m mode
 
@@ -47,6 +48,7 @@ impl OpInfo {
             imd16: 0,
             eaddr: 0,
             disp: 0,
+            jpc: 0,
             memval: None,            
             
         }
@@ -61,6 +63,7 @@ impl OpInfo {
         self.imd16 = 0;
         self.eaddr = 0;
         self.disp = 0;
+        self.jpc = 0;
         self.memval = None;
     }
 }
@@ -570,6 +573,12 @@ impl<'a> Runtime<'a> {
         (self.oi.m, self.oi.reg, self.oi.rm) = Runtime::get_mod_reg_rm(self.fetch());
     }
 
+    fn calc_disp(&self, addr: i16) -> u16 {
+        let disp = addr as i32;
+        let tmp = self.pc as i32 + disp;
+        (tmp & 0xffff) as u16        
+    }
+
     pub fn run(&mut self) -> () {
         println!("Run");
         println!("len = {}", self.text.len());
@@ -651,7 +660,19 @@ impl<'a> Runtime<'a> {
                         _ => panic!("impossible"),
                     }
                     callback = Some(Disasm::show_xor);                    
-                }                
+                }
+                0x73 => { // jnb
+                    let disp = self.fetch();                    
+                    self.oi.jpc = self.calc_disp((disp as i8) as i16);
+                    //println!("jpc = {:04x}", self.oi.jpc);
+                    if self.c() == false {
+                        self.pc = self.oi.jpc;
+                    }
+
+                    callback = Some(Disasm::show_jnb);
+
+                    
+                }
                 0x80 ..= 0x83 => { // sub
                     (self.oi.s, self.oi.w) = Runtime::get_sw(op);
                     (self.oi.m, self.oi.reg, self.oi.rm) = Runtime::get_mod_reg_rm(self.fetch());                    
