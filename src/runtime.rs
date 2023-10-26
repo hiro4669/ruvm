@@ -362,6 +362,10 @@ impl<'a> Runtime<'a> {
         (arg >> 1 & 1, arg & 1)
     }
 
+    fn get_w(arg: u8) -> u8 {
+        arg & 1
+    }
+
     fn get_eaddr(&mut self) -> &mut Runtime<'a> {        
         if self.oi.m == 0 && self.oi.rm == 6 {
             self.oi.eaddr = self.fetch2();
@@ -746,6 +750,27 @@ impl<'a> Runtime<'a> {
                     let _tp = self.fetch();                    
                     eprintln!("{}", self.disasm.get_log(&regstatus, &Disasm::show_syscall(&self.oi), &self.oi.memval));                     
                     self.os.syscall(self.regs[3], &mut self.data);                    
+                }
+                0xf6 ..= 0xf7 => { // test
+                    self.oi.w = Runtime::get_w(op);
+                    self.get_mrrm();
+            
+                    match self.oi.reg {
+                        0 => { // test
+                            let data = self.get_data(self.oi.w);
+                            let edata = self.get_eaddr().read_effective();
+                            if self.oi.w == 0 {
+                                let val: u8 = (data & 0xff) as u8 & (edata & 0xff) as u8;
+                                self.set_flags(false, val == 0, (val as i8) < 0 , false);
+                            } else {
+                                let val: u16 = data & edata;
+                                self.set_flags(false, val == 0, (val as i16) < 0 , false);
+                            }
+                        }
+                        _ => panic!("no such pattern"),
+                    }
+
+                    callback = Some(Disasm::show_test);
                 }
                 _ => {
                     println!("unrecognized operator {:02x}", op);
