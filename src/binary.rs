@@ -41,16 +41,17 @@ impl Binary {
     
     pub fn fetch4(idx: usize, data: &[u8]) -> u32{
         let v1: u32 = data[idx] as u32;
-        let v2: u32 = data[idx+1] as u32;
-        let v3: u32 = data[idx+2] as u32;
-        let v4: u32 = data[idx+3] as u32;
+        let v2: u32 = (data[idx+1] as u32) << 8;
+        let v3: u32 = (data[idx+2] as u32) << 16;
+        let v4: u32 = (data[idx+3] as u32) << 24;
         v4 | v3 | v2 | v1
     }
 
     // &[u8]のライフライムはselfと同じ
     //pub fn get_text(&self) -> &[u8] {
     pub fn get_text<'a>(&'a self) -> &'a [u8] {
-        let length = Binary::fetch4(8, &self.aout);        
+        let length = Binary::fetch4(8, &self.aout); 
+        println!("text length = {}", length);
         &self.aout[0x20..0x20 + length as usize]        
     }
 

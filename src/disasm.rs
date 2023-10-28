@@ -110,8 +110,17 @@ impl Disasm {
         }
     }
 
+    pub fn show_push(opinfo: &OpInfo) -> String {
+        let reg_str = Disasm::get_reg(&opinfo.reg, &opinfo.w);
+        format!("{} {}", "push", reg_str)
+    }
+
     pub fn show_jnb(opinfo: &OpInfo) -> String {
         format!("jnb {:04x}", opinfo.jpc)        
+    }
+
+    pub fn show_jne(opinfo: &OpInfo) -> String {
+        format!("jne {:04x}", opinfo.jpc)
     }
 
     pub fn show_test(opinfo: &OpInfo) -> String {

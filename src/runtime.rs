@@ -206,8 +206,13 @@ impl<'a> Runtime<'a> {
         self.dec_sp();
         self.data[self.get_sp() as usize] = val;
     }
+
+    fn push_word(&mut self, val: u16) {
+        self.push_byte( (val & 0xff) as u8);
+        self.push_byte((val >> 8 & 0xff) as u8);
+    }
     pub fn dec_sp(&mut self) {
-        self.set_sp(self.get_sp().wrapping_sub(1));
+        self.set_sp(self.get_sp().wrapping_sub(1));        
     }
 
     pub fn inc_sp(&mut self) {
@@ -538,7 +543,9 @@ impl<'a> Runtime<'a> {
     fn write_effective(&mut self, val: u16) {
         if self.oi.m == 3 {
             self.write_register(self.oi.eaddr as u8, self.oi.w, val);
+            return;
         }
+
         match self.oi.w {
             0 => {
                 self.data[self.oi.eaddr as usize] = (val & 0xff) as u8;                
@@ -589,7 +596,13 @@ impl<'a> Runtime<'a> {
 
         if self.debug {
             Disasm::show_header();
+            /*
+            for i in 0..0x12 {
+                print!("{:02x} ", self.data[i as usize]);
+            }
+            */
         }
+        println!("");
 
         
         
@@ -599,6 +612,12 @@ impl<'a> Runtime<'a> {
         loop {
             //print!("{:02x} ", self.text[self.pc as usize]);
             //self.pc += 1;
+            /*
+            for i in 0..0x12 {
+                print!("{:02x} ", self.data[i as usize]);
+            }
+            println!();
+            */
             
             self.prev_pc = self.pc;
             let op = self.fetch();
@@ -665,6 +684,13 @@ impl<'a> Runtime<'a> {
                     }
                     callback = Some(Disasm::show_xor);                    
                 }
+                0x50 ..= 0x57 => { // push
+                    self.oi.w = 1;
+                    self.oi.reg = op & 7;
+                    let val = self.read_register(self.oi.reg);                    
+                    self.push_word(val);                    
+                    callback = Some(Disasm::show_push);                    
+                }
                 0x73 => { // jnb
                     let disp = self.fetch();                    
                     self.oi.jpc = self.calc_disp((disp as i8) as i16);
@@ -672,9 +698,16 @@ impl<'a> Runtime<'a> {
                     if self.c() == false {
                         self.pc = self.oi.jpc;
                     }
-
+                    callback = Some(Disasm::show_jnb);                    
+                }
+                0x75 => { // jne
+                    let disp = self.fetch();                    
+                    self.oi.jpc = self.calc_disp((disp as i8) as i16);
+                    //println!("jpc = {:04x}", self.oi.jpc);
+                    if self.z() == false {
+                        self.pc = self.oi.jpc;
+                    }
                     callback = Some(Disasm::show_jnb);
-
                     
                 }
                 0x80 ..= 0x83 => { // sub
