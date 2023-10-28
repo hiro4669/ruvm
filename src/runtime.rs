@@ -208,8 +208,8 @@ impl<'a> Runtime<'a> {
     }
 
     fn push_word(&mut self, val: u16) {
-        self.push_byte( (val & 0xff) as u8);
         self.push_byte((val >> 8 & 0xff) as u8);
+        self.push_byte( (val & 0xff) as u8);        
     }
     pub fn dec_sp(&mut self) {
         self.set_sp(self.get_sp().wrapping_sub(1));        
@@ -772,17 +772,40 @@ impl<'a> Runtime<'a> {
                     callback = Some(Disasm::show_lea);
                                     
                 }
-                0xbb => { // mov
+                0xb0 ..= 0xbf => { // mov
                     (self.oi.w, self.oi.reg)= Runtime::get_reg_w(op);
                     self.get_data(self.oi.w);
                     self.write_register(self.oi.reg, self.oi.w, self.oi.imd16); // behavior
                     
                     callback = Some(Disasm::show_mov1);                   
                 }
-                0xcd => {
+                0xcd => { // interrupt
                     let _tp = self.fetch();                    
                     eprintln!("{}", self.disasm.get_log(&regstatus, &Disasm::show_syscall(&self.oi), &self.oi.memval));                     
                     self.os.syscall(self.regs[3], &mut self.data);                    
+                }
+
+                0xe8 => { // call
+                    let disp = self.fetch2() as i16;
+                    self.oi.jpc = self.calc_disp(disp);                    
+                    //println!("pc   = {:04x}", self.pc);
+                    self.push_word(self.pc);
+                    self.pc = self.oi.jpc;
+                    /*
+                    let lsp = self.get_sp();
+                    for i in lsp .. lsp+2 {
+                        print!("{:02x }", self.data[i as usize]);                        
+                    }
+                    println!("");
+                    */
+                    callback = Some(Disasm::show_call);
+                    
+                }
+                0xe9 => { // jmp
+                    let disp = self.fetch2() as i16;
+                    self.oi.jpc = self.calc_disp(disp);                    
+                    self.pc = self.oi.jpc;
+                    callback = Some(Disasm::show_jmp);                    
                 }
                 0xf6 ..= 0xf7 => { // test
                     self.oi.w = Runtime::get_w(op);

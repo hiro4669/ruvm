@@ -110,6 +110,14 @@ impl Disasm {
         }
     }
 
+    pub fn show_jmp(opinfo: &OpInfo) -> String {
+        format!("jpc {:04x}", opinfo.jpc)
+    }
+
+    pub fn show_call(opinfo: &OpInfo) -> String {
+        format!("call {:04x}", opinfo.jpc)
+    }
+
     pub fn show_push(opinfo: &OpInfo) -> String {
         let reg_str = Disasm::get_reg(&opinfo.reg, &opinfo.w);
         format!("{} {}", "push", reg_str)
