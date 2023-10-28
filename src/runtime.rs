@@ -726,19 +726,32 @@ impl<'a> Runtime<'a> {
                             self.set_flags(c_flg, val == 0, val < 0, o_flg);                            
                             
                             match self.oi.reg {
-                                5 => {
+                                5 => { // sub
                                     self.write_effective(val as u16);
                                     callback = Some(Disasm::show_sub);
                                 }
-                                7 => {
+                                7 => { // cmp
                                     callback = Some(Disasm::show_cmp);
                                 }
                                 _ => panic!("no such reg pattern"),
                             }
                         }
                         0x82 => panic!("no such op"),
-                        0x83 => {
-                            panic!("not yet implemented");
+                        0x83 => { // imd8, sign extended
+                            let src = ((self.oi.imd16 & 0xff) as i8) as i16; // sign extended
+                            //let src = ((0x00f0 & 0xff) as i8) as i16;                            
+                            let c_flg = (dst).overflowing_sub(src as u16).1;
+                            let (val, o_flg) = (dst as i16).overflowing_sub(src);
+                            //println!("val = {:04x}", val as u16);
+                            self.set_flags(c_flg, val == 0, val < 0, o_flg);
+
+                            match self.oi.reg {
+                                5 => { // sub
+                                    self.write_effective(val as u16);
+                                    callback = Some(Disasm::show_sub);
+                                }
+                                _ => panic!("no such reg pattern"),
+                            }
                         }
                         _ => panic!("no such pattern"),
                     }
