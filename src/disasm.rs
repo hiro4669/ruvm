@@ -116,6 +116,10 @@ impl Disasm {
         }
     }
 
+    pub fn show_ret(_opinfo: &OpInfo) -> String {
+        format!("ret")
+    }
+
     pub fn show_jmp(opinfo: &OpInfo) -> String {
         format!("jmp {:04x}", opinfo.jpc)
     }

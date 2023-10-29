@@ -713,7 +713,7 @@ impl<'a> Runtime<'a> {
                     self.oi.w = 1;
                     self.oi.reg = op & 7;
                     let val = self.pop();
-                    println!("val = {:04x}", val);
+                    //println!("val = {:04x}", val);
                     self.write_register(self.oi.reg, self.oi.w, val);
                     callback = Some(Disasm::show_pop);                
                 }
@@ -817,6 +817,12 @@ impl<'a> Runtime<'a> {
                     self.write_register(self.oi.reg, self.oi.w, self.oi.imd16); // behavior
                     
                     callback = Some(Disasm::show_mov1);                   
+                }
+
+                0xc3 => { // ret
+                    self.oi.jpc = self.pop();
+                    self.pc = self.oi.jpc;
+                    callback = Some(Disasm::show_ret);                                        
                 }
                 0xcd => { // interrupt
                     let _tp = self.fetch();                    
