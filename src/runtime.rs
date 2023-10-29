@@ -402,6 +402,12 @@ impl<'a> Runtime<'a> {
         }
         
         match self.oi.rm {
+            4 => {
+                self.oi.eaddr = (self.get_reg(SI) as i32 + self.oi.disp as i32) as u16;
+            }
+            6 => {                
+                self.oi.eaddr = (self.get_reg(BP) as i32 + self.oi.disp as i32) as u16;                
+            }
             7 => {                
                 unsafe {
                     //let tad: i32 = *self.bx as i32;
@@ -766,7 +772,7 @@ impl<'a> Runtime<'a> {
                             //println!("to r/m"); 
                             self.write_effective(rval);
                         },
-                        1 => { // to register                                                         
+                        1 => { // to register                            
                             self.write_register(self.oi.reg, self.oi.w, eval);
                         },
                         _ => panic!("impossible"),
@@ -841,10 +847,22 @@ impl<'a> Runtime<'a> {
 
                     callback = Some(Disasm::show_test);
                 }
+                0xff => { // push and so on..
+                    self.get_mrrm();
+                    self.oi.w = 1;
+                    let val = self.get_eaddr().read_effective();                    
+                    match self.oi.reg {
+                        6 => { // push
+                            self.push_word(val);
+                            callback = Some(Disasm::show_push2);
+                        }
+                        _ => panic!("not yet implemented ff"),
+                    }                    
+                }
                 _ => {
                     println!("unrecognized operator {:02x}", op);
                     std::process::exit(1);
-                }
+                }                
             }
 
             

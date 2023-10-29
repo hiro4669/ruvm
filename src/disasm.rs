@@ -68,19 +68,25 @@ impl Disasm {
         }
 
         match rm {
+            4 => {
+                if *disp == 0 {
+                    return "[si]".to_string();
+                } else {
+                    if *disp < 0 {format!("[si-{:x}]", -*disp)} else {format!("[si+{:x}]", *disp)}
+                }
+            }
+            6 => {
+                if *disp == 0 {
+                    return "[bp]".to_string();
+                } else {
+                    if *disp < 0 {format!("[bp-{:x}]", -*disp)} else {format!("[bp+{:x}]", *disp)}
+                }
+            }
             7 => {
                 if *disp == 0 {
                     return "[bx]".to_string();
                 } else {
-                    if *disp < 0 {format!("[bx-{}]", -*disp)} else {format!("[bx+{}]", *disp)}
-                    /*
-                    let str = if *disp < 0 {
-                        format!("[bx-{}]", -*disp)
-                    } else {
-                        format!("[bx+{}]", *disp)
-                    };
-                    return str;                    
-                    */
+                    if *disp < 0 {format!("[bx-{:x}]", -*disp)} else {format!("[bx+{:x}]", *disp)}                    
                 }
             }
             _ => panic!("not implemented yet"),
@@ -121,6 +127,11 @@ impl Disasm {
     pub fn show_push(opinfo: &OpInfo) -> String {
         let reg_str = Disasm::get_reg(&opinfo.reg, &opinfo.w);
         format!("{} {}", "push", reg_str)
+    }
+
+    pub fn show_push2(opinfo: &OpInfo) -> String {
+        let rm_str = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr, &opinfo.disp);
+        format!("{} {}", "push", rm_str)        
     }
 
     pub fn show_jnb(opinfo: &OpInfo) -> String {
