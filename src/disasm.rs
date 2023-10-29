@@ -117,7 +117,11 @@ impl Disasm {
     }
 
     pub fn show_jmp(opinfo: &OpInfo) -> String {
-        format!("jpc {:04x}", opinfo.jpc)
+        format!("jmp {:04x}", opinfo.jpc)
+    }
+
+    pub fn show_jmp_short(opinfo: &OpInfo) -> String {
+        format!("jmp short {:04x}", opinfo.jpc)
     }
 
     pub fn show_call(opinfo: &OpInfo) -> String {

@@ -805,8 +805,8 @@ impl<'a> Runtime<'a> {
                 }
 
                 0xe8 => { // call
-                    let disp = self.fetch2() as i16;
-                    self.oi.jpc = self.calc_disp(disp);                    
+                    let addr = self.fetch2() as i16;
+                    self.oi.jpc = self.calc_disp(addr);                    
                     //println!("pc   = {:04x}", self.pc);
                     self.push_word(self.pc);
                     self.pc = self.oi.jpc;
@@ -821,10 +821,18 @@ impl<'a> Runtime<'a> {
                     
                 }
                 0xe9 => { // jmp
-                    let disp = self.fetch2() as i16;
-                    self.oi.jpc = self.calc_disp(disp);                    
+                    let addr = self.fetch2() as i16;
+                    self.oi.jpc = self.calc_disp(addr);                    
                     self.pc = self.oi.jpc;
                     callback = Some(Disasm::show_jmp);                    
+                }
+                0xeb => { // jmp short
+                    let addr = self.fetch() as i8;
+                    self.oi.jpc = self.calc_disp(addr as i16);
+                    //println!("jpc = {:04x}", self.oi.jpc);
+                    self.pc = self.oi.jpc;
+                    callback = Some(Disasm::show_jmp_short);
+                    
                 }
                 0xf6 ..= 0xf7 => { // test
                     self.oi.w = Runtime::get_w(op);
