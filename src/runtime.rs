@@ -202,6 +202,18 @@ impl<'a> Runtime<'a> {
         self.get_reg(SP)
     }
 
+    fn pop_byte(&mut self) -> u8 {
+        let r : u8= self.data[self.get_sp() as usize];
+        self.inc_sp();
+        r
+    }
+
+    fn pop(&mut self) -> u16 {
+        let v1 = self.pop_byte();
+        let v2 =  self.pop_byte();
+        (v2 as u16) << 8 | v1 as u16
+    }
+
     fn push_byte(&mut self, val: u8) {
         self.dec_sp();
         self.data[self.get_sp() as usize] = val;
@@ -697,6 +709,14 @@ impl<'a> Runtime<'a> {
                     self.push_word(val);                    
                     callback = Some(Disasm::show_push);                    
                 }
+                0x58 ..= 0x5f => { // pop
+                    self.oi.w = 1;
+                    self.oi.reg = op & 7;
+                    let val = self.pop();
+                    println!("val = {:04x}", val);
+                    self.write_register(self.oi.reg, self.oi.w, val);
+                    callback = Some(Disasm::show_pop);                
+                }
                 0x73 => { // jnb
                     let disp = self.fetch();                    
                     self.oi.jpc = self.calc_disp((disp as i8) as i16);
@@ -801,7 +821,8 @@ impl<'a> Runtime<'a> {
                 0xcd => { // interrupt
                     let _tp = self.fetch();                    
                     eprintln!("{}", self.disasm.get_log(&regstatus, &Disasm::show_syscall(&self.oi), &self.oi.memval));                     
-                    self.os.syscall(self.regs[3], &mut self.data);                    
+                    self.os.syscall(self.regs[3], &mut self.data);
+                    self.set_reg(AX, 0); // temporary
                 }
 
                 0xe8 => { // call
