@@ -189,6 +189,14 @@ impl Disasm {
         format!("{} {}", "add", arg_str)        
     }
 
+    pub fn show_add2(opinfo: &OpInfo) -> String {
+        let rm_str = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr, &opinfo.disp);
+        match (opinfo.s, opinfo.w) {
+            (0, 1) => format!("{} {}, {:04x}", "add", rm_str, opinfo.imd16), 
+            _ => format!("{} {}, {:x}", "add", rm_str, opinfo.imd16),
+        }        
+    }
+
     pub fn show_lea(opinfo: &OpInfo) -> String {
         let reg_str = Disasm::get_reg(&opinfo.reg, &opinfo.w);        
         let rm_str = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr, &opinfo.disp);
@@ -212,7 +220,7 @@ impl Disasm {
         let rm = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr, &opinfo.disp);
         match (opinfo.s, opinfo.w) {
             (0, 1) => format!("{} {}, {:04x}", "sub", rm, opinfo.imd16),            
-            _ => format!("{} {}, {:02x}", "sub", rm, opinfo.imd16),
+            _ => format!("{} {}, {:x}", "sub", rm, opinfo.imd16),
         }        
     }
 
@@ -220,7 +228,7 @@ impl Disasm {
         let rm = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr, &opinfo.disp);
         match (opinfo.s, opinfo.w) {
             (0, 1) => format!("{} {}, {:04x}", "cmp", rm, opinfo.imd16), 
-            _ => format!("{} {}, {:02x}", "cmp", rm, opinfo.imd16),
+            _ => format!("{} {}, {:x}", "cmp", rm, opinfo.imd16),
         }        
     }
 

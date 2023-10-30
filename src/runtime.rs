@@ -781,7 +781,7 @@ impl<'a> Runtime<'a> {
                     callback = Some(Disasm::show_jnl);
 
                 }
-                0x80 ..= 0x83 => { // sub
+                0x80 ..= 0x83 => { // sub/cmp/add
                     (self.oi.s, self.oi.w) = Runtime::get_sw(op);
                     (self.oi.m, self.oi.reg, self.oi.rm) = Runtime::get_mod_reg_rm(self.fetch());                    
                     let dst = self.get_eaddr().read_effective();
@@ -809,21 +809,25 @@ impl<'a> Runtime<'a> {
                         }
                         0x82 => panic!("no such op"),
                         0x83 => { // imd8, sign extended
-                            let src = ((self.oi.imd16 & 0xff) as i8) as i16; // sign extended
-                            //let src = ((0x00f0 & 0xff) as i8) as i16;                            
-                            let c_flg = (dst).overflowing_sub(src as u16).1;
-                            let (val, o_flg) = (dst as i16).overflowing_sub(src);
-                            //println!("val = {:04x}", val as u16);
-                            self.set_flags(c_flg, val == 0, val < 0, o_flg);
-
+                            let src = ((self.oi.imd16 & 0xff) as i8) as i16; // sign extended                           
                             match self.oi.reg {
-                                5 => { // sub
-                                    self.write_effective(val as u16);
-                                    callback = Some(Disasm::show_sub);
+                                0 => {
+                                    let c_flg = dst.overflowing_add(src as u16).1;
+                                    let (val, o_flg) = (dst as i16).overflowing_add(src);
+                                    self.set_flags(c_flg, val == 0, val < 0, o_flg);
+                                    callback = Some(Disasm::show_add2);                                    
                                 }
-                                7 => { // cmp
-                                    callback = Some(Disasm::show_cmp);                                    
-                                }
+                                5 | 7 => { // sub/cmp
+                                    let c_flg = (dst).overflowing_sub(src as u16).1;
+                                    let (val, o_flg) = (dst as i16).overflowing_sub(src);
+                                    self.set_flags(c_flg, val == 0, val < 0, o_flg);
+                                    if self.oi.reg == 5 { // sub
+                                        self.write_effective(val as u16);
+                                        callback = Some(Disasm::show_sub);
+                                    } else { // cmp
+                                        callback = Some(Disasm::show_cmp);
+                                    }
+                                }                               
                                 _ => panic!("no such reg pattern"),                                
                             }
                         }
