@@ -779,6 +779,15 @@ impl<'a> Runtime<'a> {
                     callback = Some(Disasm::show_jnb);
                     
                 }
+                0x7c => { // jl
+                    
+                    let disp = self.fetch();                    
+                    self.oi.jpc = self.calc_disp((disp as i8) as i16);
+                    if self.s() != self.o() {
+                        self.pc = self.oi.jpc;
+                    }
+                    callback = Some(Disasm::show_jl);                    
+                }
                 0x7d => { // jnl
                     let disp = self.fetch();                    
                     self.oi.jpc = self.calc_disp((disp as i8) as i16);

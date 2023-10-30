@@ -163,6 +163,10 @@ impl Disasm {
         format!("je {:04x}", opinfo.jpc)
     }
 
+    pub fn show_jl(opinfo: &OpInfo) -> String {
+        format!("jl {:04x}", opinfo.jpc)
+    }
+
     pub fn show_test(opinfo: &OpInfo) -> String {
         let rm_str = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr, &opinfo.disp);
         let data_str = Disasm::data_to_string(&opinfo.w, &opinfo.imd16);
