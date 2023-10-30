@@ -671,6 +671,35 @@ impl<'a> Runtime<'a> {
                     callback = Some(Disasm::show_add);                    
                     
                 }
+                0x08 ..= 0x0b => { // or
+                    self.get_dwmrrm(&op);
+                    let eval = self.get_eaddr().read_effective();
+                    let rval = self.read_register(self.oi.reg);
+
+                    let val16 = eval | rval;
+                    match self.oi.d {
+                        0 => { // to r/m
+                            self.write_effective(val16);
+                        },
+                        1 => {
+                            self.write_register(self.oi.reg, self.oi.w, val16);
+                        },
+                        _ => panic!("impossible"),
+                    }
+
+                    match self.oi.w {
+                        0 => {
+                            let ival8 = (val16 & 0xff) as i8;
+                            panic!("not implemented yet");
+                        },
+                        1 => {
+                            let ival16 = val16 as i16;
+                            self.set_flags(false, ival16 == 0, ival16 < 0, false);
+                        },
+                        _ => panic!("impossible"),
+                    } 
+                    callback = Some(Disasm::show_or);
+                }
                 0x30 ..= 0x33 => {// xor
                     self.get_dwmrrm(&op);
                     let eval = self.get_eaddr().read_effective();
@@ -701,35 +730,14 @@ impl<'a> Runtime<'a> {
                         _ => panic!("impossible"),
                     }
                     callback = Some(Disasm::show_xor);                    
-                }
-                0x08 ..= 0x0b => { // or
-                    self.get_dwmrrm(&op);
-                    let eval = self.get_eaddr().read_effective();
-                    let rval = self.read_register(self.oi.reg);
-
-                    let val16 = eval | rval;
-                    match self.oi.d {
-                        0 => { // to r/m
-                            self.write_effective(val16);
-                        },
-                        1 => {
-                            self.write_register(self.oi.reg, self.oi.w, val16);
-                        },
-                        _ => panic!("impossible"),
-                    }
-
-                    match self.oi.w {
-                        0 => {
-                            let ival8 = (val16 & 0xff) as i8;
-                            panic!("not implemented yet");
-                        },
-                        1 => {
-                            let ival16 = val16 as i16;
-                            self.set_flags(false, ival16 == 0, ival16 < 0, false);
-                        },
-                        _ => panic!("impossible"),
-                    } 
-                    callback = Some(Disasm::show_or);
+                }                
+                0x48 ..= 0x4f => { // dec
+                    self.oi.reg = op & 7;
+                    self.oi.w = 1;
+                    let rval = self.get_reg(self.oi.reg);
+                    let (val, o_flg) = (rval as i16).overflowing_sub(1);
+                    self.set_flags(self.c(), val == 0, val < 0, o_flg);
+                    callback = Some(Disasm::show_dec);
                 }
                 0x50 ..= 0x57 => { // push
                     self.oi.w = 1;

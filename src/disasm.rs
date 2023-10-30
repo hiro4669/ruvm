@@ -169,6 +169,11 @@ impl Disasm {
         format!("test {}, {}", rm_str, data_str)        
     }
 
+    pub fn show_dec(opinfo: &OpInfo) -> String {
+        let reg_str = Disasm::get_reg(&opinfo.reg, &opinfo.w);
+        format!("{} {}", "dec", reg_str)
+    }
+
     pub fn show_or(opinfo: &OpInfo) -> String {
         let reg_str = Disasm::get_reg(&opinfo.reg, &opinfo.w);        
         let rm_str = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr, &opinfo.disp);
