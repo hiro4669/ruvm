@@ -155,10 +155,24 @@ impl Disasm {
         format!("jne {:04x}", opinfo.jpc)
     }
 
+    pub fn show_je(opinfo: &OpInfo) -> String {
+        format!("je {:04x}", opinfo.jpc)
+    }
+
     pub fn show_test(opinfo: &OpInfo) -> String {
         let rm_str = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr, &opinfo.disp);
         let data_str = Disasm::data_to_string(&opinfo.w, &opinfo.imd16);
         format!("test {}, {}", rm_str, data_str)        
+    }
+
+    pub fn show_or(opinfo: &OpInfo) -> String {
+        let reg_str = Disasm::get_reg(&opinfo.reg, &opinfo.w);        
+        let rm_str = Disasm::get_rm(&opinfo.m, &opinfo.rm, &opinfo.w, &opinfo.reg, &opinfo.eaddr, &opinfo.disp);
+        let mut arg_str = format!("{}, {}", rm_str, reg_str);
+        if opinfo.d == 1 {
+            arg_str = format!("{}, {}", reg_str, rm_str);
+        }
+        format!("{} {}", "or", arg_str)
     }
 
     pub fn show_add(opinfo: &OpInfo) -> String {

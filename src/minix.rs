@@ -22,6 +22,14 @@ impl Minix {
         (val2 as u16) << 8 | val1 as u16        
     }
 
+    fn write2(idx: u16, val: u16, data: &mut [u8]) {
+        data[idx as usize] = (val & 0xff) as u8;
+        data[(idx+1) as usize] = ((val >> 8) & 0xff) as u8;
+    }
+
+
+
+
     pub fn syscall(&self, bx: u16, dmem: &mut [u8]) {
         let mut idx = bx;        
         let _m_source = Minix::fetch2(idx, dmem);
@@ -38,14 +46,16 @@ impl Minix {
                 std::process::exit(0);
             }
             4 => {// write
-                self.write(idx, dmem);
+                let ret = self.write(idx, dmem);
+                Minix::write2(bx+2, ret, dmem); // temporary
             }
+
             _ => panic!("not supported {}", m_type),
 
         }
     }
 
-    pub fn write(&self, idx_: u16, dmem : &mut [u8]) {        
+    pub fn write(&self, idx_: u16, dmem : &mut [u8]) -> u16 {
         let mut idx = idx_;
         let fd = Minix::fetch2(idx, dmem);
         idx += 2;
@@ -58,17 +68,13 @@ impl Minix {
         if self.debug {
             eprint!("<write({}, 0x{:04x}, {})", fd, buffer, nbytes);
         }
+        let mut ret: u16 = 0xffff; // as -1
         unsafe { 
-            let ret = sys_write(fd, bptr, nbytes); 
+            ret = sys_write(fd, bptr, nbytes); 
             if self.debug {
                 eprintln!(" => {}>", ret);
             }
         }
-
-
-
-        
-        
-
+        return ret;
     }
 }

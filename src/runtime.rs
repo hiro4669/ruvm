@@ -702,6 +702,35 @@ impl<'a> Runtime<'a> {
                     }
                     callback = Some(Disasm::show_xor);                    
                 }
+                0x08 ..= 0x0b => { // or
+                    self.get_dwmrrm(&op);
+                    let eval = self.get_eaddr().read_effective();
+                    let rval = self.read_register(self.oi.reg);
+
+                    let val16 = eval | rval;
+                    match self.oi.d {
+                        0 => { // to r/m
+                            self.write_effective(val16);
+                        },
+                        1 => {
+                            self.write_register(self.oi.reg, self.oi.w, val16);
+                        },
+                        _ => panic!("impossible"),
+                    }
+
+                    match self.oi.w {
+                        0 => {
+                            let ival8 = (val16 & 0xff) as i8;
+                            panic!("not implemented yet");
+                        },
+                        1 => {
+                            let ival16 = val16 as i16;
+                            self.set_flags(false, ival16 == 0, ival16 < 0, false);
+                        },
+                        _ => panic!("impossible"),
+                    } 
+                    callback = Some(Disasm::show_or);
+                }
                 0x50 ..= 0x57 => { // push
                     self.oi.w = 1;
                     self.oi.reg = op & 7;
@@ -719,12 +748,19 @@ impl<'a> Runtime<'a> {
                 }
                 0x73 => { // jnb
                     let disp = self.fetch();                    
-                    self.oi.jpc = self.calc_disp((disp as i8) as i16);
-                    //println!("jpc = {:04x}", self.oi.jpc);
+                    self.oi.jpc = self.calc_disp((disp as i8) as i16);                    
                     if self.c() == false {
                         self.pc = self.oi.jpc;
                     }
                     callback = Some(Disasm::show_jnb);                    
+                }
+                0x74 => { // je
+                    let disp = self.fetch();
+                    self.oi.jpc = self.calc_disp((disp as i8) as i16);
+                    if self.z() == true {                        
+                        self.pc = self.oi.jpc;
+                    }
+                    callback = Some(Disasm::show_je);                    
                 }
                 0x75 => { // jne
                     let disp = self.fetch();                    
@@ -776,7 +812,10 @@ impl<'a> Runtime<'a> {
                                     self.write_effective(val as u16);
                                     callback = Some(Disasm::show_sub);
                                 }
-                                _ => panic!("no such reg pattern"),
+                                7 => { // cmp
+                                    callback = Some(Disasm::show_cmp);                                    
+                                }
+                                _ => panic!("no such reg pattern"),                                
                             }
                         }
                         _ => panic!("no such pattern"),
