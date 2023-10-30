@@ -765,12 +765,21 @@ impl<'a> Runtime<'a> {
                 0x75 => { // jne
                     let disp = self.fetch();                    
                     self.oi.jpc = self.calc_disp((disp as i8) as i16);
-                    //println!("jpc = {:04x}", self.oi.jpc);
                     if self.z() == false {
                         self.pc = self.oi.jpc;
                     }
                     callback = Some(Disasm::show_jnb);
                     
+                }
+                0x7d => { // jnl
+                    let disp = self.fetch();                    
+                    self.oi.jpc = self.calc_disp((disp as i8) as i16);
+
+                    if self.s() == self.o() {
+                        self.pc = self.oi.jpc;
+                    }
+                    callback = Some(Disasm::show_jnl);
+
                 }
                 0x80 ..= 0x83 => { // sub
                     (self.oi.s, self.oi.w) = Runtime::get_sw(op);

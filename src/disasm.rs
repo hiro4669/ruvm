@@ -147,6 +147,10 @@ impl Disasm {
         format!("{} {}", "push", rm_str)        
     }
 
+    pub fn show_jnl(opinfo: &OpInfo) -> String {
+        format!("jnl {:04x}", opinfo.jpc)
+    }
+
     pub fn show_jnb(opinfo: &OpInfo) -> String {
         format!("jnb {:04x}", opinfo.jpc)        
     }
